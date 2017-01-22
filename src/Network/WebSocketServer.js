@@ -10,8 +10,9 @@ function _wrapConnection (uwsConnection) {
   uwsConnection.on('message', function (message) {
     if (connection.onMessage !== null) {
       connection.messageQueue.push(message);
-      connection.onMessage(connection.messageQueue.shift())();
+      var messageHandler = connection.onMessage;
       connection.onMessage = null;
+      messageHandler(connection.messageQueue.shift())();
     } else {
       connection.messageQueue.push(message);
     }
@@ -34,15 +35,16 @@ exports.create = function (port) {
       var connection = _wrapConnection(uwsConnection);
       if (server.onConnection !== null) {
         server.connectionQueue.push(connection);
-        server.onConnection(server.connectionQueue.shift())();
+        var connectionHandler = server.onConnection;
         server.onConnection = null;
+        connectionHandler(server.connectionQueue.shift())();
       } else {
         server.connectionQueue.push(connection);
       }
     });
 
     return server;
-  }
+  };
 };
 
 exports.acceptConnection = function (server) {
@@ -53,7 +55,7 @@ exports.acceptConnection = function (server) {
       } else {
         server.onConnection = done;
       }
-    }
+    };
   };
 };
 
@@ -73,12 +75,14 @@ exports.receiveMessage = function (connection) {
       } else {
         connection.onMessage = done;
       }
-    }
+    };
   };
 };
 
 exports.sendMessage = function (connection) {
   return function (message) {
-    connection.send(message);
+    return function () {
+      connection.uwsConnection.send(message);
+    };
   };
 };

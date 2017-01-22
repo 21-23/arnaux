@@ -3,17 +3,20 @@ module Main where
 import Prelude
 import Network.WebSocketServer
 import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (CONSOLE, log, logShow)
-import Control.Monad.Rec.Class (forever)
+import Control.Monad.Eff.Console (CONSOLE, log)
 import Control.Monad.ST (ST, STRef, modifySTRef, newSTRef, readSTRef)
-import Data.Argonaut (jsonParser, decodeJson, encodeJson)
-import Data.Argonaut.Core (stringify)
+import Data.Argonaut (jsonParser, decodeJson)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
 import Data.StrMap (StrMap, empty, insert, lookup)
 import Messages (IncomingMessage(..))
 
-messageHandler :: ∀ e h. STRef h (StrMap Connection) -> Connection -> Message -> Eff (console :: CONSOLE, st :: ST h, ws :: WS | e) Unit
+messageHandler
+  :: ∀ e h
+   . STRef h (StrMap Connection)
+  -> Connection
+  -> Message
+  -> Eff (console :: CONSOLE, st :: ST h, ws :: WS | e) Unit
 messageHandler state connection message = do
   case jsonParser message >>= decodeJson of
     Left error -> log error
@@ -34,7 +37,12 @@ messageHandler state connection message = do
           pure unit
   receiveMessage connection $ messageHandler state connection
 
-connectionHandler :: ∀ e h. WebSocketServer -> STRef h (StrMap Connection) -> Connection -> Eff (console :: CONSOLE, st :: ST h, ws :: WS | e) Unit
+connectionHandler
+  :: ∀ e h
+   . WebSocketServer
+  -> STRef h (StrMap Connection)
+  -> Connection
+  -> Eff (console :: CONSOLE, st :: ST h, ws :: WS | e) Unit
 connectionHandler server state connection = do
   receiveMessage connection $ messageHandler state connection
   acceptConnection server $ connectionHandler server state

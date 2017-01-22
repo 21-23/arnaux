@@ -6,6 +6,10 @@ connection.on('error', () => { console.log('error!'); });
 
 connection.on('open', () => {
   connection.send('{"payload":"{\\"name\\":\\"Jenny\\"}","type":"checkin"}');
+  setTimeout(() => {
+    connection.send('{"payload":"{\\"cellar\\":\\"door\\"}","type":"message","destination":"Joey"}');
+    connection.send('{"payload":"{\\"cellar\\":\\"door\\"}","type":"message","destination":"Erewhon"}');
+  }, 5000);
 });
 
 connection.on('message', console.log);
