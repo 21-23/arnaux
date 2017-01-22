@@ -8,12 +8,13 @@ import Control.Monad.ST (ST, STRef, modifySTRef, newSTRef, readSTRef)
 import Data.Argonaut (jsonParser, decodeJson)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
-import Data.StrMap (StrMap, empty, insert, lookup)
+import Data.StrMap (lookup)
 import Messages (IncomingMessage(..))
+import State (State(..), checkIn, checkOut, empty)
 
 messageHandler
   :: ∀ e h
-   . STRef h (StrMap Connection)
+   . STRef h State
   -> Connection
   -> Message
   -> Eff (console :: CONSOLE, st :: ST h, ws :: WS | e) Unit
@@ -22,14 +23,13 @@ messageHandler state connection message = do
     Left error -> log error
     Right msg -> do
       case msg of
-        CheckIn {name} -> do
-          log $ "checkin: " <> name
-          modifySTRef state \connections ->
-            insert name connection connections
+        CheckIn {identity} -> do
+          log $ "checkin: " <> identity
+          modifySTRef state $ checkIn connection identity
           pure unit
         Message {to} -> do
           log $ "to: " <> to
-          connections <- readSTRef state
+          State {connections} <- readSTRef state
           case lookup to connections of
             Nothing -> log $ to <> " is not connected"
             Just toConnection -> do
@@ -37,18 +37,28 @@ messageHandler state connection message = do
           pure unit
   receiveMessage connection $ messageHandler state connection
 
+connectionCloseHandler
+  :: ∀ e h
+   . STRef h State
+  -> Connection
+  -> Eff (st :: ST h | e) Unit
+connectionCloseHandler state connection = do
+  modifySTRef state $ checkOut connection
+  pure unit
+
 connectionHandler
   :: ∀ e h
    . WebSocketServer
-  -> STRef h (StrMap Connection)
+  -> STRef h State
   -> Connection
   -> Eff (console :: CONSOLE, st :: ST h, ws :: WS | e) Unit
 connectionHandler server state connection = do
   receiveMessage connection $ messageHandler state connection
+  closeConnection connection $ connectionCloseHandler state
   acceptConnection server $ connectionHandler server state
 
 main :: forall e h. Eff (console :: CONSOLE, st :: ST h, ws :: WS | e) Unit
 main = do
-  state <- newSTRef empty
+  state <- newSTRef $ empty
   server <- create 3000
   acceptConnection server $ connectionHandler server state

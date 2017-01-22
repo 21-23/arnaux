@@ -12,7 +12,7 @@ import Data.Argonaut
   )
 
 data IncomingMessage
-  = CheckIn { name :: String }
+  = CheckIn { identity :: String }
   | Message { to :: String }
 
 instance decodeJson :: DecodeJson IncomingMessage where
@@ -24,8 +24,8 @@ decodeJson json = do
       payloadString <- message .? "payload"
       payloadJson <- jsonParser payloadString
       payload <- decodeJson payloadJson
-      name <- payload .? "name"
-      pure $ CheckIn {name}
+      identity <- payload .? "identity"
+      pure $ CheckIn {identity}
     _ -> do
       to <- message .? "destination"
       pure $ Message {to}

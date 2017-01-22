@@ -4,7 +4,8 @@ function _wrapConnection (uwsConnection) {
   var connection = {
     uwsConnection: uwsConnection,
     messageQueue: [],
-    onMessage: null
+    onMessage: null,
+    onClose: null
   };
 
   uwsConnection.on('message', function (message) {
@@ -15,6 +16,13 @@ function _wrapConnection (uwsConnection) {
       messageHandler(connection.messageQueue.shift())();
     } else {
       connection.messageQueue.push(message);
+    }
+  });
+
+  uwsConnection.on('close', function () {
+    if (connection.onClose !== null) {
+      connection.onClose(connection)();
+      connection.onClose = null;
     }
   });
 
@@ -59,14 +67,6 @@ exports.acceptConnection = function (server) {
   };
 };
 
-exports.logConnection = function (connection) {
-  console.log(connection);
-};
-
-exports.logMessage = function (connection) {
-  console.log(connection);
-};
-
 exports.receiveMessage = function (connection) {
   return function (done) {
     return function () {
@@ -79,10 +79,24 @@ exports.receiveMessage = function (connection) {
   };
 };
 
+exports.closeConnection = function (connection) {
+  return function (done) {
+    return function () {
+      connection.onClose = done;
+    };
+  };
+};
+
 exports.sendMessage = function (connection) {
   return function (message) {
     return function () {
       connection.uwsConnection.send(message);
     };
+  };
+};
+
+exports.connectionEq = function (connectionA) {
+  return function (connectionB) {
+    return connectionA === connectionB;
   };
 };
