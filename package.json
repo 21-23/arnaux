@@ -1,0 +1,25 @@
+{
+  "name": "arnaux",
+  "version": "1.0.0",
+  "description": "Message service for _qd",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/games4nerds/arnaux.git"
+  },
+  "author": "",
+  "license": "LGPL-3.0",
+  "bugs": {
+    "url": "https://github.com/games4nerds/arnaux/issues"
+  },
+  "homepage": "https://github.com/games4nerds/arnaux#readme",
+  "dependencies": {
+    "uws": "^0.12.0"
+  }
+}

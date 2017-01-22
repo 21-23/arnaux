@@ -1,0 +1,19 @@
+{
+  "name": "arnaux",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "output"
+  ],
+  "dependencies": {
+    "purescript-prelude": "^2.1.0",
+    "purescript-console": "^2.0.0",
+    "purescript-eff": "^2.0.0",
+    "purescript-argonaut": "^2.0.0",
+    "purescript-maps": "^2.1.0"
+  },
+  "devDependencies": {
+    "purescript-psci-support": "^2.0.0"
+  }
+}
