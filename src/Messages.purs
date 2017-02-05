@@ -18,14 +18,12 @@ data IncomingMessage
 instance decodeJson :: DecodeJson IncomingMessage where
 decodeJson json = do
   message <- decodeJson json
-  messageType <- message .? "type"
+  payload <- message .? "message"
+  messageType <- payload .? "name"
   case messageType of
     "checkin" -> do
-      payloadString <- message .? "payload"
-      payloadJson <- jsonParser payloadString
-      payload <- decodeJson payloadJson
       identity <- payload .? "identity"
       pure $ CheckIn {identity}
     _ -> do
-      to <- message .? "destination"
+      to <- message .? "to"
       pure $ Message {to}
