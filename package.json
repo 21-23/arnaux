@@ -9,13 +9,13 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "repository": "git+https://github.com/games4nerds/arnaux.git",
-  "author": "games4nerds",
+  "repository": "git+https://github.com/21-23/arnaux.git",
+  "author": "21-23",
   "license": "LGPL-3.0",
   "bugs": {
-    "url": "https://github.com/games4nerds/arnaux/issues"
+    "url": "https://github.com/21-23/arnaux/issues"
   },
-  "homepage": "https://github.com/games4nerds/arnaux#readme",
+  "homepage": "https://github.com/21-23/arnaux#readme",
   "dependencies": {
     "uws": "^0.12.0"
   }
