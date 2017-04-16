@@ -7,7 +7,6 @@ import Prelude
 import Data.Argonaut
   ( class DecodeJson
   , decodeJson
-  , jsonParser
   , (.?)
   )
 

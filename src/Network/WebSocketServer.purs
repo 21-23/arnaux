@@ -1,13 +1,13 @@
 module Network.WebSocketServer where
 
-import Control.Monad.Eff (Eff)
+import Control.Monad.Eff (Eff, kind Effect)
 import Data.Ord.Unsafe (unsafeCompare)
 import Prelude (class Eq, class Ord, Unit)
 
-foreign import data WS :: !
-foreign import data WebSocketServer :: *
+foreign import data WS :: Effect
+foreign import data WebSocketServer :: Type
 
-foreign import data Connection :: *
+foreign import data Connection :: Type
 
 foreign import connectionEq :: Connection -> Connection -> Boolean
 

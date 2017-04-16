@@ -26,10 +26,9 @@ messageHandler state connection message = do
       case msg of
         CheckIn {identity} -> do
           log $ "checkin: " <> identity
-          modifySTRef state $ checkIn connection identity
+          _ <- modifySTRef state $ checkIn connection identity
           pure unit
         Message {to} -> do
-          -- log $ "to: " <> to
           State {connections} <- readSTRef state
           case lookup to connections of
             Nothing -> log $ to <> " is not connected"
@@ -44,7 +43,7 @@ connectionCloseHandler
   -> Connection
   -> Eff (st :: ST h | e) Unit
 connectionCloseHandler state connection = do
-  modifySTRef state $ checkOut connection
+  _ <- modifySTRef state $ checkOut connection
   pure unit
 
 connectionHandler
