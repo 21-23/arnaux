@@ -19,6 +19,7 @@ messageHandler
   -> Message
   -> Eff (console :: CONSOLE, st :: ST h, ws :: WS | e) Unit
 messageHandler state connection message = do
+  log message
   case jsonParser message >>= decodeJson of
     Left error -> log error
     Right msg -> do
@@ -28,7 +29,7 @@ messageHandler state connection message = do
           modifySTRef state $ checkIn connection identity
           pure unit
         Message {to} -> do
-          log $ "to: " <> to
+          -- log $ "to: " <> to
           State {connections} <- readSTRef state
           case lookup to connections of
             Nothing -> log $ to <> " is not connected"
