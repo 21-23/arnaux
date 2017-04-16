@@ -12,6 +12,7 @@
   "repository": "git+https://github.com/21-23/arnaux.git",
   "author": "21-23",
   "license": "LGPL-3.0",
+  "private": true,
   "bugs": {
     "url": "https://github.com/21-23/arnaux/issues"
   },
