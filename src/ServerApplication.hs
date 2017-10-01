@@ -17,19 +17,19 @@ import           Envelope             (Envelope(Envelope, message))
 import           Message              (IncomingMessage(Checkin, Message))
 
 application :: MVar State -> WebSocket.ServerApp
-application stateVar pending = do
+application stateVar pending = forever $ do
   connection <- WebSocket.acceptRequest pending
-  forever $ do
-    string <- WebSocket.receiveData connection :: IO ByteString
-    case eitherDecode string :: Either String (Envelope IncomingMessage) of
-      Right Envelope { message } -> case message of
-        Checkin identity -> do
-          state <- readMVar stateVar
-          putMVar stateVar $ State.addClient connection identity state
-          putStrLn $ "🕊  Checkin: " <> show identity
-        Message identity -> do
-          (State clients) <- readMVar stateVar
-          case Map.lookup identity clients of
-            Just recipient -> WebSocket.sendTextData recipient string
-            Nothing        -> return ()
-      Left err -> putStrLn $ "Message parsing error " <> err
+  string     <- WebSocket.receiveData connection :: IO ByteString
+  putStrLn $ show string
+  case eitherDecode string :: Either String (Envelope IncomingMessage) of
+    Right Envelope { message } -> case message of
+      Checkin identity -> do
+        state <- readMVar stateVar
+        putMVar stateVar $ State.addClient connection identity state
+        putStrLn $ "🕊  Checkin: " <> show identity
+      Message identity -> do
+        (State clients) <- readMVar stateVar
+        case Map.lookup identity clients of
+          Just recipient -> WebSocket.sendTextData recipient string
+          Nothing        -> return ()
+    Left err -> putStrLn $ "Message parsing error " <> err

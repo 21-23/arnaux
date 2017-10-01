@@ -1,77 +1,59 @@
-name:                arnaux
-version:             0.1.0.0
--- synopsis:
--- description:
-homepage:            https://github.com/githubuser/arnaux#readme
-license:             BSD3
-license-file:        LICENSE
-author:              Author name here
-maintainer:          example@example.com
-copyright:           2017 Author name here
-category:            Web
-build-type:          Simple
-extra-source-files:  README.md
-cabal-version:       >=1.10
-
-library
-  hs-source-dirs:      src
-  exposed-modules:     WebSocketServer
-                     , Envelope
-                     , Identity
-                     , Message
-                     , State
-                     , ServerApplication
-  build-depends:       base >= 4.7 && < 5
-                     , websockets
-                     , bytestring
-                     , text
-                     , aeson
-                     , containers
-  default-language:    Haskell2010
-  ghc-options:         -O2
-                       -j2
-                       -Wall
-                       -Werror
-                       -Wmissing-import-lists
-                       -Wmissing-exported-signatures
-                       -Wincomplete-uni-patterns
-                       -Wincomplete-record-updates
-                       -Wmonomorphism-restriction
-                       -Widentities
-                       -Wredundant-constraints
-
-executable arnaux-exe
-  hs-source-dirs:      app
-  main-is:             Main.hs
-  build-depends:       base
-                     , arnaux
-  default-language:    Haskell2010
-  ghc-options:         -threaded
-                       -rtsopts
-                       -with-rtsopts=-N
-                       -O2
-                       -Wall
-                       -Werror
-                       -j2
-                       -Wmissing-import-lists
-                       -Wmissing-exported-signatures
-                       -Wincomplete-uni-patterns
-                       -Wincomplete-record-updates
-                       -Wmonomorphism-restriction
-                       -Widentities
-                       -Wredundant-constraints
-
-test-suite arnaux-test
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      test
-  main-is:             Spec.hs
-  build-depends:       base
-                     , arnaux
-  ghc-options:         -threaded
-                       -rtsopts
-                       -with-rtsopts=-N
-  default-language:    Haskell2010
+name: arnaux
+version: 0.1.0.0
+cabal-version: >=1.10
+build-type: Simple
+license: BSD3
+license-file: LICENSE
+copyright: 2017 Author name here
+maintainer: example@example.com
+homepage: https://github.com/githubuser/arnaux#readme
+category: Web
+author: Author name here
+extra-source-files:
+    README.md
 
 source-repository head
-  type:     git
-  location: https://github.com/githubuser/arnaux
+    type: git
+    location: https://github.com/githubuser/arnaux
+
+library
+    exposed-modules:
+        WebSocketServer
+        Envelope
+        Identity
+        Message
+        State
+        ServerApplication
+    build-depends:
+        base >=4.7 && <5,
+        websockets -any,
+        bytestring -any,
+        text -any,
+        aeson -any,
+        containers -any,
+        wai -any,
+        warp -any,
+        wai-websockets -any,
+        http-types -any
+    default-language: Haskell2010
+    hs-source-dirs: src
+    ghc-options: -O2 -j2 -Wall -Werror -Wmissing-import-lists -Wmissing-exported-signatures -Wincomplete-uni-patterns -Wincomplete-record-updates -Wmonomorphism-restriction -Widentities -Wredundant-constraints
+
+executable arnaux-exe
+    main-is: Main.hs
+    build-depends:
+        base -any,
+        arnaux -any
+    default-language: Haskell2010
+    hs-source-dirs: app
+    ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2 -Wall -Werror -j2 -Wmissing-import-lists -Wmissing-exported-signatures -Wincomplete-uni-patterns -Wincomplete-record-updates -Wmonomorphism-restriction -Widentities -Wredundant-constraints
+
+test-suite arnaux-test
+    type: exitcode-stdio-1.0
+    main-is: Spec.hs
+    build-depends:
+        base -any,
+        arnaux -any
+    default-language: Haskell2010
+    hs-source-dirs: test
+    ghc-options: -threaded -rtsopts -with-rtsopts=-N
