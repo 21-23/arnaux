@@ -13,7 +13,7 @@ import           Data.Aeson           (eitherDecode)
 
 import           State                (State(State))
 import qualified State
-import           Envelope             (Envelope(Envelope, message))
+import           Envelope             (Envelope(Envelope, message, to))
 import           Message              (IncomingMessage(Checkin, Message))
 
 application :: MVar State -> WebSocket.ServerApp
@@ -24,14 +24,14 @@ application stateVar pending = do
     string <- WebSocket.receiveData connection :: IO ByteString
     print string
     case eitherDecode string :: Either String (Envelope IncomingMessage) of
-      Right Envelope { message } -> case message of
+      Right Envelope { message, to } -> case message of
         Checkin identity -> do
           state <- takeMVar stateVar
           putMVar stateVar $ State.addClient connection identity state
           putStrLn $ "🕊  Checkin: " <> show identity
-        Message identity -> do
+        Message -> do
           (State clients) <- readMVar stateVar
-          case Map.lookup identity clients of
+          case Map.lookup to clients of
             Just recipient -> WebSocket.sendTextData recipient string
             Nothing        -> return ()
 
