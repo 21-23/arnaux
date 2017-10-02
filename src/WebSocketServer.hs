@@ -8,6 +8,7 @@ import           Network.Wai                    (Application, responseLBS)
 import qualified Network.Wai.Handler.Warp        as Warp
 import           Network.Wai.Handler.WebSockets (websocketsOr)
 import           Network.HTTP.Types             (status400)
+import           Data.Monoid                    ((<>))
 
 import qualified State
 import           ServerApplication              (application)
@@ -18,7 +19,9 @@ backupApp _ respond =
 
 startServer :: IO ()
 startServer = do
+  let port = 3000
   stateVar <- newMVar State.empty
-  Warp.run 3000 $ websocketsOr WebSocket.defaultConnectionOptions
+  putStrLn $ "🕊  Listening on port " <> show port
+  Warp.run port $ websocketsOr WebSocket.defaultConnectionOptions
                                (application stateVar)
                                backupApp

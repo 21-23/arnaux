@@ -5,7 +5,7 @@ module ServerApplication (application) where
 
 import           Data.ByteString.Lazy (ByteString)
 import           Data.Monoid          ((<>))
-import           Control.Concurrent   (MVar, readMVar, putMVar)
+import           Control.Concurrent   (MVar, readMVar, takeMVar, putMVar)
 import           Control.Monad        (forever)
 import qualified Data.Map.Strict       as Map
 import qualified Network.WebSockets    as WebSocket
@@ -17,19 +17,22 @@ import           Envelope             (Envelope(Envelope, message))
 import           Message              (IncomingMessage(Checkin, Message))
 
 application :: MVar State -> WebSocket.ServerApp
-application stateVar pending = forever $ do
+application stateVar pending = do
   connection <- WebSocket.acceptRequest pending
-  string     <- WebSocket.receiveData connection :: IO ByteString
-  putStrLn $ show string
-  case eitherDecode string :: Either String (Envelope IncomingMessage) of
-    Right Envelope { message } -> case message of
-      Checkin identity -> do
-        state <- readMVar stateVar
-        putMVar stateVar $ State.addClient connection identity state
-        putStrLn $ "🕊  Checkin: " <> show identity
-      Message identity -> do
-        (State clients) <- readMVar stateVar
-        case Map.lookup identity clients of
-          Just recipient -> WebSocket.sendTextData recipient string
-          Nothing        -> return ()
-    Left err -> putStrLn $ "Message parsing error " <> err
+  WebSocket.forkPingThread connection 30 --seconds
+  forever $ do
+    string <- WebSocket.receiveData connection :: IO ByteString
+    print string
+    case eitherDecode string :: Either String (Envelope IncomingMessage) of
+      Right Envelope { message } -> case message of
+        Checkin identity -> do
+          state <- takeMVar stateVar
+          putMVar stateVar $ State.addClient connection identity state
+          putStrLn $ "🕊  Checkin: " <> show identity
+        Message identity -> do
+          (State clients) <- readMVar stateVar
+          case Map.lookup identity clients of
+            Just recipient -> WebSocket.sendTextData recipient string
+            Nothing        -> return ()
+
+      Left err -> putStrLn $ "Message parsing error " <> err
