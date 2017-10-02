@@ -1,6 +1,1 @@
-/bower_components/
-/node_modules/
-/.pulp-cache/
-/output/
-/.psc*
-/.psa*
+.stack-work
