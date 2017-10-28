@@ -10,6 +10,7 @@ import Identity      (Identity, parseIdentity)
 
 data IncomingMessage
   = CheckIn Identity
+  | CheckOut Identity
   | Message
 
 instance FromJSON IncomingMessage where
@@ -20,6 +21,11 @@ instance FromJSON IncomingMessage where
         identityString <- message .: "identity"
         case parseIdentity identityString of
           Just identity -> return $ CheckIn identity
+          Nothing       -> fail   $ "Unrecognized identity " <> identityString
+      String "checkout" -> do
+        identityString <- message .: "identity"
+        case parseIdentity identityString of
+          Just identity -> return $ CheckOut identity
           Nothing       -> fail   $ "Unrecognized identity " <> identityString
       String _         -> return Message
       _                -> fail   "Message name is not a string"
