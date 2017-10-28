@@ -3,83 +3,106 @@
 
 module ServerApplication (application) where
 
+import           Data.Text                 (Text, pack)
+import qualified Data.Text.IO              as TextIO
 import           Control.Concurrent        (MVar, putMVar, takeMVar)
 import           Control.Monad             (forever)
 import           Data.ByteString.Lazy      (ByteString)
 import           Data.Monoid               ((<>))
-import qualified Data.Map.Strict       as Map
+import qualified Data.Map.Strict           as Map
 import qualified Network.WebSockets        as WebSocket
-import           Data.Aeson           (eitherDecode)
+import           Data.Aeson                (eitherDecode)
 import           Control.Exception         (catch)
 import qualified Data.UUID.V4              as UUID
 
-import           State                     (ConnectionState (Accepted), State(State, clients))
+import           State                     ( Connection (Connection)
+                                           , ConnectionState (Accepted, CheckedIn)
+                                           , State (State, connections, clients)
+                                           )
 import qualified State
-import           Envelope             (Envelope(Envelope))
+import           Envelope                  (Envelope(Envelope))
 import           Identity (Identity)
 import           Message                   (IncomingMessage(CheckIn, Message))
 
--- data ConnectionStateError
---   = MessageBeforeCheckIn
---   | RepeatedCheckIn
+data Action
+  = Connect Connection
+  | Disconnect Connection
+  | Incoming Connection (Envelope IncomingMessage) ByteString
 
 data Effect
-  = None
-  | Send WebSocket.Connection ByteString
+  = Log Text
+  | Send Connection ByteString
 
 data MessageError
   = IdentityAlreadyCheckedIn Identity
   | IdentityNotCheckedIn Identity
+  | InconsistentState
+  | MessageBeforeCheckIn
+  | RepeatedCheckIn
   deriving (Show)
 
-data Incoming = Incoming (Envelope IncomingMessage) ByteString
+stateLogic :: Action -> State -> Either MessageError (State, Effect)
+stateLogic (Connect connection) state =
+  let newState = State.connect connection state
+      effect   = Log $ "New connection: " <> pack (show connection)
+   in Right (newState, effect)
 
--- cStateLogic :: ConnectionState -> IncomingMessage -> Either ConnectionStateError ConnectionState
--- cStateLogic (Accepted connection) (CheckIn identity) = Right $ CheckedIn connection identity
--- cStateLogic (Accepted _)           _                 = Left MessageBeforeCheckIn
--- cStateLogic (CheckedIn _ _)       (CheckIn _)        = Left RepeatedCheckIn
--- cStateLogic state                  _                 = Right state
+stateLogic (Incoming connection (Envelope _ (CheckIn identity)) _) state@State {connections, clients} =
+  case Map.lookup connection connections of
+    Nothing            -> Left InconsistentState
+    Just (CheckedIn _) -> Left RepeatedCheckIn
+    Just Accepted      -> case Map.lookup identity clients of
+                            Just _  -> Left $ IdentityAlreadyCheckedIn identity
+                            Nothing ->
+                              let newState = State.checkIn connection identity state
+                                  effect   = Log $ "CheckIn: " <> pack (show identity)
+                               in Right (newState, effect)
 
-stateLogic :: WebSocket.Connection -> Incoming -> State -> Either MessageError (State, Effect)
-stateLogic connection (Incoming (Envelope _ (CheckIn identity)) _) state@State {clients} =
-  case Map.lookup identity clients of
-    Just _  -> Left $ IdentityAlreadyCheckedIn identity
-    Nothing -> Right (State.addClient connection identity state, None)
+stateLogic (Incoming connection (Envelope identity Message) messageString) state@State {connections, clients} =
+  case Map.lookup connection connections of
+    Nothing            -> Left InconsistentState
+    Just Accepted      -> Left MessageBeforeCheckIn
+    Just (CheckedIn _) -> case Map.lookup identity clients of
+                            Nothing     -> Left $ IdentityNotCheckedIn identity
+                            Just client -> Right (state, Send client messageString)
 
-stateLogic _ (Incoming (Envelope identity Message) messageString) state@State {clients} =
-  case Map.lookup identity clients of
-    Nothing     -> Left $ IdentityNotCheckedIn identity
-    Just client -> Right (state, Send client messageString)
+stateLogic (Disconnect connection) state@State {connections} =
+  let newState = State.disconnect connection state
+   in case Map.lookup connection connections of
+        Just Accepted ->
+          Right (newState, Log $ "Disconnected: " <> pack (show connection))
+        Just (CheckedIn identity) ->
+          Right (newState, Log $ "Checked out & disconnected: " <> pack (show identity))
+        Nothing -> Left InconsistentState
 
 handleEffect :: Effect -> IO ()
-handleEffect None = return ()
-handleEffect (Send connection string) = WebSocket.sendTextData connection string
+handleEffect (Log string) = TextIO.putStrLn $ "🕊  " <> string
+handleEffect (Send (Connection _ connection) string) =
+  WebSocket.sendTextData connection string
 
 application :: MVar State -> WebSocket.ServerApp
 application stateVar pending = do
-  connection <- WebSocket.acceptRequest pending
-  WebSocket.forkPingThread connection 30 --seconds
+  wsConnection <- WebSocket.acceptRequest pending
+  WebSocket.forkPingThread wsConnection 30 --seconds
 
   connectionId <- UUID.nextRandom
   state_ <- takeMVar stateVar
-  putMVar stateVar $ State.addConnection (Accepted connection) connectionId state_
-  putStrLn $ "Joined: " <> show connectionId
+  putMVar stateVar $ State.connect (Connection connectionId wsConnection) state_
 
   catch (forever
     (do
-      string <- WebSocket.receiveData connection :: IO ByteString
-      putStrLn $ "Received: " <> show string <> " from " <> show connectionId
+      string <- WebSocket.receiveData wsConnection :: IO ByteString
       case eitherDecode string :: Either String (Envelope IncomingMessage) of
         Right envelope -> do
           state <- takeMVar stateVar
-          case stateLogic connection (Incoming envelope string) state of
+          case stateLogic (Incoming (Connection connectionId wsConnection) envelope string) state of
             Left err -> do
               putMVar stateVar state
               print err
             Right (newState, effect) -> do
               putMVar stateVar newState
               handleEffect effect
-        Left err -> putStrLn $ "Message parsing error " <> err))
+        Left err -> TextIO.putStrLn $ "Message parsing error " <> pack err))
     (\e -> do
-        putStrLn $ "Disconnected: " <> show connectionId <> show (e :: WebSocket.ConnectionException)
+        TextIO.putStrLn $ pack $ show (e :: WebSocket.ConnectionException)
         return ())
