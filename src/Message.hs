@@ -9,7 +9,7 @@ import Data.Monoid   ((<>))
 import Identity      (Identity, parseIdentity)
 
 data IncomingMessage
-  = Checkin Identity
+  = CheckIn Identity
   | Message
 
 instance FromJSON IncomingMessage where
@@ -19,7 +19,7 @@ instance FromJSON IncomingMessage where
       String "checkin" -> do
         identityString <- message .: "identity"
         case parseIdentity identityString of
-          Just identity -> return $ Checkin identity
+          Just identity -> return $ CheckIn identity
           Nothing       -> fail   $ "Unrecognized identity " <> identityString
       String _         -> return Message
       _                -> fail   "Message name is not a string"

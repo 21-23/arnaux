@@ -23,16 +23,16 @@ data State = State
 empty :: State
 empty = State
   { connections = Map.empty
-  , clients = Map.empty
+  , clients     = Map.empty
   }
 
 addConnection :: ConnectionState -> ConnectionId -> State -> State
 addConnection connectionState connectionId state@(State connections _) =
   state { connections = Map.insert connectionId connectionState connections }
---
--- addClient :: Connection -> Identity -> State -> State
--- addClient connection identity state@(State clients) =
---   state { clients = Map.insert identity connection clients }
+
+addClient :: Connection -> Identity -> State -> State
+addClient connection identity state@(State _ clients) =
+  state { clients = Map.insert identity connection clients }
 --
 -- removeClient :: Identity -> State -> State
 -- removeClient identity state@(State clients) =
