@@ -4,25 +4,11 @@ module State where
 
 import           Data.Map.Strict    (Map)
 import qualified Data.Map.Strict     as Map
-import qualified Network.WebSockets  as WebSockets
-import           Data.UUID          (UUID)
 
 import           Identity           (Identity)
-
-data Connection = Connection UUID WebSockets.Connection
-
-instance Eq Connection where
-  (==) (Connection idA _) (Connection idB _) = idA == idB
-
-instance Ord Connection where
-  compare (Connection idA _) (Connection idB _) = compare idA idB
-
-instance Show Connection where
-  show (Connection connectionId _) = show connectionId
-
-data ConnectionState
-  = Accepted
-  | CheckedIn Identity
+import           Connection         ( Connection
+                                    , ConnectionState (Accepted, CheckedIn)
+                                    )
 
 data State = State
   { connections :: Map Connection ConnectionState

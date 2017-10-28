@@ -15,10 +15,10 @@ import           Data.Aeson                (eitherDecode)
 import           Control.Exception         (catch)
 import qualified Data.UUID.V4              as UUID
 
-import           State                     ( Connection (Connection)
+import           Connection                ( Connection (Connection)
                                            , ConnectionState (Accepted, CheckedIn)
-                                           , State (State, connections, clients)
                                            )
+import           State                     (State (State, connections, clients))
 import qualified State
 import           Envelope                  (Envelope(Envelope))
 import           Identity (Identity)
