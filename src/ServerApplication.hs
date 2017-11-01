@@ -43,49 +43,55 @@ data MessageError
   | CheckOutWrongIdentity Identity Identity
   deriving (Show)
 
+withState :: Connection
+          -> Identity
+          -> (Maybe ConnectionState -> Maybe Connection -> Either MessageError (State, Effect))
+          -> State
+          -> Either MessageError (State, Effect)
+withState connection identity modify State {connections, clients} =
+  modify (Map.lookup connection connections) (Map.lookup identity clients)
+
 stateLogic :: Action -> State -> Either MessageError (State, Effect)
 stateLogic (Connect connection) state =
   let newState = State.connect connection state
       effect   = Log $ "New connection: " <> pack (show connection)
    in Right (newState, effect)
 
-stateLogic (Incoming connection (Envelope _ (CheckIn identity)) _) state@State {connections, clients} =
-  case Map.lookup connection connections of
-    Nothing            -> Left InconsistentState
-    Just (CheckedIn _) -> Left RepeatedCheckIn
-    Just Accepted      -> case Map.lookup identity clients of
-                            Just _  -> Left $ IdentityAlreadyCheckedIn identity
-                            Nothing ->
-                              let newState = State.checkIn connection identity state
-                                  effect   = Log $ "CheckIn: "
-                                                    <> pack (show identity)
-                                                    <> " "
-                                                    <> pack (show connection)
-                               in Right (newState, effect)
+stateLogic (Incoming connection (Envelope _ (CheckIn identity)) _) state =
+  withState connection identity modify state
+    where
+      modify Nothing              _        = Left InconsistentState
+      modify (Just (CheckedIn _)) _        = Left RepeatedCheckIn
+      modify (Just Accepted)      (Just _) = Left $ IdentityAlreadyCheckedIn identity
+      modify (Just Accepted)       Nothing = let newState = State.checkIn connection identity state
+                                                 effect   = Log $ "CheckIn: "
+                                                                  <> pack (show identity)
+                                                                  <> " "
+                                                                  <> pack (show connection)
+                                              in Right (newState, effect)
 
-stateLogic (Incoming connection (Envelope _ (CheckOut identity)) _) state@State {connections, clients} =
-  case Map.lookup connection connections of
-    Nothing            -> Left InconsistentState
-    Just Accepted      -> Left CheckOutWithoutCheckIn
-    Just (CheckedIn cIdentity)
-      | cIdentity /= identity -> Left $ CheckOutWrongIdentity identity cIdentity
-      | otherwise             -> case Map.lookup identity clients of
-                                   Nothing -> Left InconsistentState
-                                   Just _ ->
-                                     let newState = State.checkOut identity state
-                                         effect   = Log $ "CheckOut: "
-                                                          <> pack (show identity)
-                                                          <> " "
-                                                          <> pack (show connection)
-                                      in Right (newState, effect)
+stateLogic (Incoming connection (Envelope _ (CheckOut identity)) _) state =
+  withState connection identity modify state
+    where
+      modify Nothing              _       = Left InconsistentState
+      modify (Just Accepted)      _       = Left CheckOutWithoutCheckIn
+      modify _                    Nothing = Left $ IdentityNotCheckedIn identity
+      modify (Just (CheckedIn cIdentity)) _
+              | cIdentity /= identity     = Left $ CheckOutWrongIdentity identity cIdentity
+              | otherwise                 = let newState = State.checkOut identity state
+                                                effect   = Log $ "CheckOut: "
+                                                                <> pack (show identity)
+                                                                <> " "
+                                                                <> pack (show connection)
+                                             in Right (newState, effect)
 
-stateLogic (Incoming connection (Envelope identity Message) messageString) state@State {connections, clients} =
-  case Map.lookup connection connections of
-    Nothing            -> Left InconsistentState
-    Just Accepted      -> Left MessageBeforeCheckIn
-    Just (CheckedIn _) -> case Map.lookup identity clients of
-                            Nothing     -> Left $ IdentityNotCheckedIn identity
-                            Just client -> Right (state, Send client messageString)
+stateLogic (Incoming connection (Envelope identity Message) messageString) state =
+  withState connection identity modify state
+    where
+      modify Nothing              _             = Left InconsistentState
+      modify (Just Accepted)      _             = Left MessageBeforeCheckIn
+      modify (Just (CheckedIn _)) Nothing       = Left $ IdentityNotCheckedIn identity
+      modify (Just (CheckedIn _)) (Just client) = Right (state, Send client messageString)
 
 stateLogic (Disconnect connection exception) state@State {connections} =
   let newState = State.disconnect connection state
