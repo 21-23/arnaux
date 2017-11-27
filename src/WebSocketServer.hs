@@ -12,7 +12,6 @@ import qualified Network.WebSockets             as WebSocket
 import qualified System.Logger                  as Logger
 import qualified System.Envy                    as Envy
 
-import           ServerApplication              (application)
 import qualified State
 import           ServerApplication              (application)
 import           Config                         (Config(Config))
@@ -33,5 +32,5 @@ startServer = do
       logger <- Logger.create $ Logger.Path "logs/arnaux.log"
       Logger.info logger $ Logger.msg infoMessage
       Warp.run port $ websocketsOr WebSocket.defaultConnectionOptions
-                                   (application stateVar)
+                                   (application logger stateVar)
                                    backupApp
