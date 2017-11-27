@@ -5,16 +5,18 @@ module Effect where
 import           Data.ByteString.Lazy (ByteString)
 import           Data.Monoid          ((<>))
 import           Data.Text            (Text)
-import qualified Data.Text.IO         as TextIO
 import qualified Network.WebSockets   as WebSocket
+import           System.Logger        (Logger, Level)
+import qualified System.Logger        as Logger
 
 import           Connection           (Connection (Connection))
 
 data Effect
-  = Log Text
+  = Log Level Text
   | Send Connection ByteString
 
-handle :: Effect -> IO ()
-handle (Log string) = TextIO.putStrLn $ "🕊  " <> string
-handle (Send (Connection _ connection) string) =
+handle :: Logger -> Effect -> IO ()
+handle logger (Log level string) =
+  Logger.log logger level $ Logger.msg $ "🕊  " <> string
+handle _      (Send (Connection _ connection) string) =
   WebSocket.sendTextData connection string
