@@ -12,6 +12,8 @@ import           Data.Monoid                    ((<>))
 
 import qualified State
 import           ServerApplication              (application)
+import           Config                         (Config(Config))
+import qualified System.Envy                    as Envy
 
 backupApp :: Application
 backupApp _ respond =
@@ -19,9 +21,12 @@ backupApp _ respond =
 
 startServer :: IO ()
 startServer = do
-  let port = 3000
-  stateVar <- newMVar State.empty
-  putStrLn $ "🕊  Listening on port " <> show port
-  Warp.run port $ websocketsOr WebSocket.defaultConnectionOptions
-                               (application stateVar)
-                               backupApp
+  envConfig <- Envy.decodeEnv :: IO (Either String Config)
+  case envConfig of
+    Left err -> putStrLn $ "Config error:" <> err
+    Right (Config port _) -> do
+      stateVar <- newMVar State.empty
+      putStrLn $ "🕊  Listening on port " <> show port
+      Warp.run port $ websocketsOr WebSocket.defaultConnectionOptions
+                                   (application stateVar)
+                                   backupApp

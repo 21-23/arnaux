@@ -29,6 +29,7 @@ library
         StateQuery
         Validation
         Effect
+        Config
     build-depends:
         base >=4.7 && <5,
         websockets -any,
@@ -41,7 +42,9 @@ library
         wai-websockets -any,
         http-types -any,
         uuid -any,
-        transformers -any
+        transformers -any,
+        tinylog -any,
+        envy -any
     default-language: Haskell2010
     hs-source-dirs: src
     ghc-options: -O2 -j2 -Wall -Werror -Wmissing-import-lists -Wmissing-exported-signatures -Wincomplete-uni-patterns -Wincomplete-record-updates -Widentities -Wredundant-constraints
