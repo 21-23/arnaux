@@ -41,5 +41,10 @@ checkIn connection identity state@(State connections clients) =
         }
 
 checkOut :: Identity -> State -> State
-checkOut identity state@(State _ clients) =
-  state { clients = Map.delete identity clients }
+checkOut identity state@(State connections clients) =
+  case Map.lookup identity clients of
+    Just connection ->
+      state { connections = Map.adjust (const Accepted) connection connections
+            , clients     = Map.delete identity clients
+            }
+    Nothing         -> state -- inconsistent state!
