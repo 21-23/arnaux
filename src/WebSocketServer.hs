@@ -25,11 +25,14 @@ startServer = do
   envConfig <- Envy.decodeEnv :: IO (Either String Config)
   case envConfig of
     Left err -> putStrLn $ "Config error:" <> err
-    Right (Config port _) -> do
+    Right (Config port logLevel) -> do
       let infoMessage = "🕊  Listening on port " <> show port
       putStrLn infoMessage
       stateVar <- newMVar State.empty
-      logger <- Logger.create $ Logger.Path "logs/arnaux.log"
+      let setLogLevel = Logger.setLogLevel logLevel
+          setOutput   = Logger.setOutput $ Logger.Path "logs/arnaux.log"
+          settings    = setLogLevel . setOutput $ Logger.defSettings
+      logger <- Logger.new settings
       Logger.info logger $ Logger.msg infoMessage
       Warp.run port $ websocketsOr WebSocket.defaultConnectionOptions
                                    (application logger stateVar)
