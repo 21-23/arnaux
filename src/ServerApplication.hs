@@ -11,10 +11,10 @@ import           Data.ByteString.Lazy             (ByteString)
 import           Data.Functor                     (($>))
 import           Data.Monoid                      ((<>))
 import           Data.Text                        (pack)
-import qualified Data.Text.IO                     as TextIO
 import qualified Data.UUID.V4                     as UUID
 import qualified Network.WebSockets               as WebSocket
 import           System.Logger                    (Logger, Level(Info, Warn))
+import qualified System.Logger                    as Logger
 
 
 import           Connection                       (Connection (Connection), ConnectionState (Accepted, CheckedIn))
@@ -110,9 +110,10 @@ application logger stateVar pending = do
   catch (forever
     (do
       string <- WebSocket.receiveData wsConnection :: IO ByteString
+      Logger.trace logger $ Logger.msg $ "🕊  Received message: " <> string
       case eitherDecode string :: Either String (Envelope IncomingMessage) of
         Right envelope ->
           let action = Incoming connection envelope string
            in updateState logger stateVar action
-        Left err -> TextIO.putStrLn $ "Message parsing error " <> pack err))
+        Left err -> Logger.warn logger $ Logger.msg $ "🕊  Message parsing error: " <> pack err))
     (updateState logger stateVar . Disconnect connection)
