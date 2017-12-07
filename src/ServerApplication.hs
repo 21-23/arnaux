@@ -75,17 +75,19 @@ stateLogic (Incoming connection (Envelope identity Message) messageString) = do
 
 stateLogic (Disconnect connection exception) = do
   connectionState <- connected connection
-  let effect = case connectionState of
-                Accepted           -> Log Info $ "Disconnected: "
-                                              <> pack (show connection)
-                                              <> " "
-                                              <> pack (show exception)
+  case connectionState of
+    Accepted           ->
+      success $ Log Info $ "Disconnected: "
+                        <> pack (show connection)
+                        <> " "
+                        <> pack (show exception)
 
-                CheckedIn identity -> Log Info $ "Checked out & disconnected: "
-                                              <> pack (show identity)
-                                              <> " "
-                                              <> pack (show exception)
-  success effect
+    CheckedIn identity -> do
+      StateT.modify $ State.checkOut identity
+      success $ Log Info $ "Checked out & disconnected: "
+                        <> pack (show identity)
+                        <> " "
+                        <> pack (show exception)
 
 updateState :: Logger -> MVar State -> Action -> IO ()
 updateState logger stateVar action = do
