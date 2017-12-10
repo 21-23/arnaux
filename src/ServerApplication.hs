@@ -12,13 +12,14 @@ import           Data.Functor                     (($>))
 import           Data.Monoid                      ((<>))
 import           Data.Text                        (pack)
 import qualified Data.UUID.V4                     as UUID
+import qualified Data.Map                         as Map
 import qualified Network.WebSockets               as WebSocket
 import           System.Logger                    (Logger, Level(Info, Warn))
 import qualified System.Logger                    as Logger
 
 
 import           Connection                       (Connection (Connection), ConnectionState (Accepted, CheckedIn))
-import           Effect                           (Effect (Log, Send), handle)
+import           Effect                           (Effect (Log, Send, List), handle)
 import           Envelope                         (Envelope (Envelope))
 import           Message                          (IncomingMessage (CheckIn, CheckOut, Message))
 import           Query                            (failure, success)
@@ -49,10 +50,14 @@ stateLogic (Incoming connection (Envelope _ (CheckIn identity)) _) = do
   notCheckedInYet connectionState
   identityIsAvailable identity
   StateT.modify $ State.checkIn connection identity
-  success $ Log Info $ "CheckIn: "
-                    <> pack (show identity)
-                    <> " "
-                    <> pack (show connection)
+  queues <- StateT.gets State.queues
+  case Map.lookup identity queues of
+    Just queue -> success $ List $ foldMap (return . Send connection) queue ++ [logEffect]
+    Nothing    -> success logEffect
+    where logEffect = Log Info $ "CheckIn: "
+                              <> pack (show identity)
+                              <> " "
+                              <> pack (show connection)
 
 stateLogic (Incoming connection (Envelope _ (CheckOut identity)) _) = do
   connectionState <- connected connection
@@ -70,8 +75,13 @@ stateLogic (Incoming connection (Envelope _ (CheckOut identity)) _) = do
 stateLogic (Incoming connection (Envelope identity Message) messageString) = do
   connectionState <- connected connection
   connectionCanMessage connectionState
-  client <- identityIsCheckedIn identity
-  success $ Send client messageString
+  clients <- StateT.gets State.clients
+  case Map.lookup identity clients of
+    Just client -> success $ Send client messageString
+    Nothing     -> do
+      StateT.modify $ State.enqueueMessage identity messageString
+      success $ Log Info $ "Putting a message in queue for "
+                        <> pack (show identity)
 
 stateLogic (Disconnect connection exception) = do
   connectionState <- connected connection
