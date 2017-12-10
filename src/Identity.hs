@@ -12,6 +12,7 @@ data Identity
   | FrontService
   | SandboxService
   | InitService
+  | MetaService
   deriving (Eq, Ord)
 
 instance Show Identity where
@@ -20,6 +21,7 @@ instance Show Identity where
   show FrontService   = "front-service"
   show SandboxService = "sandbox-service"
   show InitService    = "init-service"
+  show MetaService    = "meta-service"
 
 instance ToJSON Identity where
   toJSON = Aeson.String . pack . show
@@ -30,4 +32,5 @@ parseIdentity "messenger"       = Just Messenger
 parseIdentity "front-service"   = Just FrontService
 parseIdentity "sandbox-service" = Just SandboxService
 parseIdentity "init-service"    = Just InitService
+parseIdentity "meta-service"    = Just MetaService
 parseIdentity _                 = Nothing
