@@ -2,9 +2,16 @@
 
 module Message where
 
-import Data.Aeson    (FromJSON(parseJSON), Value(Object, String), (.:))
+import Data.Aeson    (FromJSON(parseJSON),
+                      Value(Object, String),
+                      (.:),
+                      ToJSON(toJSON),
+                      object,
+                      (.=)
+                      )
 import Control.Monad (mzero)
 import Data.Monoid   ((<>))
+import Data.Text     (Text)
 
 import Identity      (Identity, parseIdentity)
 
@@ -30,3 +37,11 @@ instance FromJSON IncomingMessage where
       String _         -> return Message
       _                -> fail   "Message name is not a string"
   parseJSON _ = mzero
+
+newtype OutgoingMessage = Start Identity
+
+instance ToJSON OutgoingMessage where
+  toJSON (Start identity) = object
+    [ "name"     .= ("start" :: Text)
+    , "identity" .= identity
+    ]

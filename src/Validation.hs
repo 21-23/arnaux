@@ -6,7 +6,7 @@ import qualified Control.Monad.Trans.State.Strict as StateT
 import qualified Data.Map.Strict                  as Map
 
 import           Connection                       (Connection, ConnectionState (Accepted, CheckedIn))
-import           Identity                         (Identity)
+import           Identity                         (Identity (MetaService))
 import           Query                            (failure, success)
 import           State                            (State (clients, connections))
 import           StateQuery                       (ServiceError (AlreadyCheckedInAs,
@@ -16,7 +16,8 @@ import           StateQuery                       (ServiceError (AlreadyCheckedI
                                                                  MessageBeforeCheckIn,
                                                                  NotConnected
                                                                  ),
-                                                   StateQuery)
+                                                   StateQuery,
+                                                   QueryResult)
 
 connected :: StateQuery Connection ConnectionState
 connected connection = do
@@ -50,3 +51,6 @@ identityIsAvailable identity = do
   case Map.lookup identity clients of
     Nothing -> success ()
     Just _  -> failure $ IdentityAlreadyCheckedIn identity
+
+metaServiceIsAvailable :: QueryResult Connection
+metaServiceIsAvailable = identityIsCheckedIn MetaService

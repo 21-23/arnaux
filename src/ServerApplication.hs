@@ -6,7 +6,7 @@ import           Control.Concurrent               (MVar, putMVar, takeMVar)
 import           Control.Exception                (catch)
 import           Control.Monad                    (forever)
 import qualified Control.Monad.Trans.State.Strict as StateT
-import           Data.Aeson                       (eitherDecode)
+import qualified Data.Aeson                       as Aeson
 import           Data.ByteString.Lazy             (ByteString)
 import           Data.Functor                     (($>))
 import           Data.Monoid                      ((<>))
@@ -21,7 +21,8 @@ import qualified System.Logger                    as Logger
 import           Connection                       (Connection (Connection), ConnectionState (Accepted, CheckedIn))
 import           Effect                           (Effect (Log, Send, List), handle)
 import           Envelope                         (Envelope (Envelope))
-import           Message                          (IncomingMessage (CheckIn, CheckOut, Message))
+import           Message                          (IncomingMessage (CheckIn, CheckOut, Message),
+                                                   OutgoingMessage (Start))
 import           Query                            (failure, success)
 import           State                            (State)
 import qualified State
@@ -32,7 +33,8 @@ import           Validation                       (connected,
                                                    connectionCanMessage,
                                                    identityIsAvailable,
                                                    identityIsCheckedIn,
-                                                   notCheckedInYet)
+                                                   notCheckedInYet,
+                                                   metaServiceIsAvailable)
 
 data Action
   = Connect Connection
@@ -79,9 +81,12 @@ stateLogic (Incoming connection (Envelope identity Message) messageString) = do
   case Map.lookup identity clients of
     Just client -> success $ Send client messageString
     Nothing     -> do
+      metaServiceConnection <- metaServiceIsAvailable
       StateT.modify $ State.enqueueMessage identity messageString
-      success $ Log Info $ "Putting a message in queue for "
-                        <> pack (show identity)
+      let sendToMetaService = Send metaServiceConnection $ Aeson.encode $ Start identity
+          logEffect         = Log Info $ "Putting a message in queue for "
+                                 <> pack (show identity)
+       in success $ List [sendToMetaService, logEffect]
 
 stateLogic (Disconnect connection exception) = do
   connectionState <- connected connection
@@ -123,7 +128,7 @@ application logger stateVar pending = do
     (do
       string <- WebSocket.receiveData wsConnection :: IO ByteString
       Logger.trace logger $ Logger.msg $ "🕊  Received message: " <> string
-      case eitherDecode string :: Either String (Envelope IncomingMessage) of
+      case Aeson.eitherDecode string :: Either String (Envelope IncomingMessage) of
         Right envelope ->
           let action = Incoming connection envelope string
            in updateState logger stateVar action

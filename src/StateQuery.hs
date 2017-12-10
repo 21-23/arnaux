@@ -1,7 +1,7 @@
 module StateQuery where
 
 import Identity (Identity)
-import Query    (Query)
+import Query    (Query, Result)
 import State    (State)
 
 data ServiceError
@@ -15,3 +15,4 @@ data ServiceError
   deriving (Show)
 
 type StateQuery a b = Query State ServiceError a b
+type QueryResult a  = Result State ServiceError a
