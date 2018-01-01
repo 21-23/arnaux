@@ -16,7 +16,6 @@ import qualified Data.Map                         as Map
 import qualified Network.WebSockets               as WebSocket
 import           System.Logger                    (Logger, Level(Info, Warn))
 import qualified System.Logger                    as Logger
-import           Data.Foldable                    (toList)
 
 
 import           Connection                       (Connection (Connection), ConnectionState (Accepted, CheckedIn))
@@ -48,23 +47,19 @@ stateLogic (Connect connection) = update $> effect
     update = StateT.modify $ State.connect connection
     effect = Log Info $ "New connection: " <> pack (show connection)
 
-stateLogic (Incoming connection (Envelope _ (CheckIn identity)) messageString) = do
+stateLogic (Incoming connection (Envelope _ (CheckIn identity)) _) = do
   connectionState <- connected connection
   notCheckedInYet connectionState
   identityIsAvailable identity
-  metaServiceConnection <- metaServiceIsAvailable
   StateT.modify $ State.checkIn connection identity
   queues <- StateT.gets State.queues
-  let logEffect         = Log Info $ "CheckIn: "
-                                  <> pack (show identity)
-                                  <> " "
-                                  <> pack (show connection)
-      notifyMetaService = Send metaServiceConnection messageString
-      sendQueuedMsgs    = case Map.lookup identity queues of
-                            Just queue -> toList $ Send connection <$> queue
-                            Nothing    -> []
-      effects           = sendQueuedMsgs ++ [notifyMetaService, logEffect]
-  success $ List effects
+  case Map.lookup identity queues of
+    Just queue -> success $ List $ foldMap (return . Send connection) queue ++ [logEffect]
+    Nothing    -> success logEffect
+    where logEffect = Log Info $ "CheckIn: "
+                              <> pack (show identity)
+                              <> " "
+                              <> pack (show connection)
 
 stateLogic (Incoming connection (Envelope _ (CheckOut identity)) _) = do
   connectionState <- connected connection
