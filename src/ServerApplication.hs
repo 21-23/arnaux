@@ -20,6 +20,7 @@ import qualified System.Logger                    as Logger
 
 import           Connection                       (Connection (Connection), ConnectionState (Accepted, CheckedIn))
 import           Effect                           (Effect (Log, Send, List), handle)
+import           Identity                         (Identity(MetaService))
 import           Envelope                         (Envelope (Envelope))
 import           Message                          (IncomingMessage (CheckIn, CheckOut, Message),
                                                    OutgoingMessage (Start))
@@ -83,7 +84,8 @@ stateLogic (Incoming connection (Envelope identity Message) messageString) = do
     Nothing     -> do
       metaServiceConnection <- metaServiceIsAvailable
       StateT.modify $ State.enqueueMessage identity messageString
-      let sendToMetaService = Send metaServiceConnection $ Aeson.encode $ Start identity
+      let startMessage      = Envelope MetaService $ Start identity
+          sendToMetaService = Send metaServiceConnection $ Aeson.encode startMessage
           logEffect         = Log Info $ "Putting a message in queue for "
                                  <> pack (show identity)
        in success $ List [sendToMetaService, logEffect]
