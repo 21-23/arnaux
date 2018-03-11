@@ -4,20 +4,25 @@
 
 module Envelope where
 
-import Control.Monad (mzero)
-import Data.Aeson    (Value(Object), FromJSON(parseJSON), (.:))
-import Message       (IncomingMessage)
-import Identity      (Identity, parseIdentity)
+import Data.Aeson      (Value(Object),
+                        FromJSON(parseJSON),
+                        ToJSON(toJSON), (.:), (.=), object)
+import ServiceIdentity (ServiceIdentity)
 
 data Envelope a = Envelope
-  { to :: Identity
+  { to      :: ServiceIdentity
   , message :: a
   }
 
-instance FromJSON (Envelope IncomingMessage) where
-  parseJSON (Object envelope) = do
-    to <- envelope .: "to"
-    case parseIdentity to of
-      Just identity -> Envelope <$> pure identity <*> envelope .: "message"
-      Nothing       -> fail "Unknown identity"
-  parseJSON _ = mzero
+instance (ToJSON msg) => ToJSON (Envelope msg) where
+  toJSON (Envelope to message) = object
+    [ "to"      .= to
+    , "message" .= message
+    ]
+
+instance (FromJSON msg) => FromJSON (Envelope msg) where
+  parseJSON (Object envelope) =
+    Envelope
+      <$> envelope .: "to"
+      <*> envelope .: "message"
+  parseJSON _ = fail "Bad message envelope format"

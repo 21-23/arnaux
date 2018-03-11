@@ -29,7 +29,6 @@ import           StateQuery                       (ServiceError (CheckOutWrongId
 import           Validation                       (connected,
                                                    connectionCanCheckOut,
                                                    connectionCanMessage,
-                                                   identityIsAvailable,
                                                    identityIsCheckedIn,
                                                    notCheckedInYet)
 
@@ -47,7 +46,6 @@ stateLogic (Connect connection) = update $> effect
 stateLogic (Incoming connection (Envelope _ (CheckIn identity)) _) = do
   connectionState <- connected connection
   notCheckedInYet connectionState
-  identityIsAvailable identity
   StateT.modify $ State.checkIn connection identity
   success $ Log Info $ "CheckIn: "
                     <> pack (show identity)

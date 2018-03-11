@@ -1,17 +1,16 @@
 module StateQuery where
 
-import Identity (Identity)
+import ServiceIdentity (ServiceIdentity)
 import Query    (Query)
 import State    (State)
 
 data ServiceError
-  = IdentityAlreadyCheckedIn Identity
-  | IdentityNotCheckedIn Identity
+  = IdentityNotCheckedIn ServiceIdentity
   | NotConnected
   | MessageBeforeCheckIn
-  | AlreadyCheckedInAs Identity
+  | AlreadyCheckedInAs ServiceIdentity
   | CheckOutWithoutCheckIn
-  | CheckOutWrongIdentity Identity Identity
+  | CheckOutWrongIdentity ServiceIdentity ServiceIdentity
   deriving (Show)
 
 type StateQuery a b = Query State ServiceError a b

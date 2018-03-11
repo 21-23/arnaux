@@ -11,6 +11,7 @@ import           Network.Wai.Handler.WebSockets (websocketsOr)
 import qualified Network.WebSockets             as WebSocket
 import qualified System.Logger                  as Logger
 import qualified System.Envy                    as Envy
+import           System.Random                  (getStdGen)
 
 import qualified State
 import           ServerApplication              (application)
@@ -28,7 +29,8 @@ startServer = do
     Right (Config port logLevel) -> do
       let infoMessage = "🕊  Listening on port " <> show port
       putStrLn infoMessage
-      stateVar <- newMVar State.empty
+      stdGen <- getStdGen
+      stateVar <- newMVar $ State.empty stdGen
       let setLogLevel = Logger.setLogLevel logLevel
           setOutput   = Logger.setOutput $ Logger.Path "logs/arnaux.log"
           settings    = setLogLevel . setOutput $ Logger.defSettings
