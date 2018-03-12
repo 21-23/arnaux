@@ -7,10 +7,10 @@ module Envelope where
 import Data.Aeson      (Value(Object),
                         FromJSON(parseJSON),
                         ToJSON(toJSON), (.:), (.=), object)
-import ServiceIdentity (ServiceIdentity)
+import ServiceIdentity (ServiceSelector)
 
 data Envelope a = Envelope
-  { to      :: ServiceIdentity
+  { to      :: ServiceSelector
   , message :: a
   }
 

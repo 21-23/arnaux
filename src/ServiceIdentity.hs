@@ -4,7 +4,7 @@ module ServiceIdentity where
 
 import           Data.Text  (Text, pack, unpack, splitOn)
 import           Data.Semigroup ((<>))
-import           Data.Aeson (ToJSON, FromJSON, Value(String, Object), object, (.=), (.:))
+import           Data.Aeson (ToJSON(toJSON), FromJSON, Value(String, Object), object, (.=), (.:))
 import qualified Data.Aeson  as Aeson
 import           Control.Monad (MonadPlus, mzero)
 import           Data.UUID (UUID)
@@ -43,22 +43,39 @@ parseServiceType string =
     ["sandbox-service", gameType]   -> SandboxService <$> parseGame gameType
     _                               -> mzero
 
-data ServiceIdentity
-  = Messenger
-  | ServiceIdentity ServiceType UUID
+data ServiceIdentity = ServiceIdentity ServiceType UUID
   deriving (Eq, Ord, Show)
 
 instance ToJSON ServiceIdentity where
-  toJSON Messenger = String "messenger"
   toJSON (ServiceIdentity serviceType uuid) = object
     [ "serviceType" .= serviceType
     , "id"   .= uuid
     ]
 
 instance FromJSON ServiceIdentity where
-  parseJSON (String "mesenger") = pure Messenger
   parseJSON (Object serviceIdentity) =
     ServiceIdentity
       <$> serviceIdentity .: "type"
       <*> serviceIdentity .: "id"
   parseJSON serviceIdentity = fail $ "Bad service identity: " <> show serviceIdentity
+
+data ServiceSelector
+  = Messenger
+  | Service ServiceIdentity
+  | AnyOfType ServiceType
+  deriving (Eq, Show)
+
+instance ToJSON ServiceSelector where
+  toJSON Messenger = String "messenger"
+  toJSON (Service serviceIdentity) = toJSON serviceIdentity
+  toJSON (AnyOfType serviceType) = toJSON serviceType
+
+instance FromJSON ServiceSelector where
+  parseJSON (String "messenger") = pure Messenger
+  parseJSON (String string)      = AnyOfType <$> parseServiceType string
+  parseJSON (Object selector)    = do
+    serviceIdentity <- ServiceIdentity
+                         <$> selector .: "type"
+                         <*> selector .: "id"
+    pure $ Service serviceIdentity
+  parseJSON serviceSelector      = fail $ "Bad service selector: " <> show serviceSelector

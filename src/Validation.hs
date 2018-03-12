@@ -6,14 +6,15 @@ import qualified Control.Monad.Trans.State.Strict as StateT
 import qualified Data.Map.Strict                  as Map
 
 import           Connection                       (Connection, ConnectionState (Accepted, CheckedIn))
-import           ServiceIdentity                  (ServiceIdentity)
+import           ServiceIdentity                  (ServiceIdentity, ServiceSelector)
 import           Query                            (failure, success)
-import           State                            (State (clients, connections))
+import           State                            (State (clients, connections), select)
 import           StateQuery                       (ServiceError (AlreadyCheckedInAs,
                                                                  CheckOutWithoutCheckIn,
                                                                  IdentityNotCheckedIn,
                                                                  MessageBeforeCheckIn,
-                                                                 NotConnected
+                                                                 NotConnected,
+                                                                 ServiceSelectorEmptyMatch
                                                                  ),
                                                    StateQuery)
 
@@ -42,3 +43,10 @@ identityIsCheckedIn identity = do
   case Map.lookup identity clients of
     Nothing         -> failure $ IdentityNotCheckedIn identity
     Just connection -> success connection
+
+selectServiceConnection :: StateQuery ServiceSelector Connection
+selectServiceConnection selector = do
+  selectorResult <- StateT.gets (State.select selector)
+  case selectorResult of
+    Nothing              -> failure $ ServiceSelectorEmptyMatch selector
+    Just (_, connection) -> success connection

@@ -5,8 +5,11 @@ module State where
 import           Data.Map.Strict    (Map)
 import qualified Data.Map.Strict     as Map
 import           System.Random      (StdGen, random)
+import           Data.List          (find)
 
-import           ServiceIdentity    (ServiceIdentity(ServiceIdentity), ServiceType)
+import           ServiceIdentity    (ServiceIdentity(ServiceIdentity),
+                                     ServiceType,
+                                     ServiceSelector(Messenger, AnyOfType, Service))
 import           Connection         ( Connection
                                     , ConnectionState (Accepted, CheckedIn)
                                     )
@@ -54,3 +57,13 @@ checkOut identity state@State{connections, clients} =
             , clients     = Map.delete identity clients
             }
     Nothing         -> state -- inconsistent state!
+
+select :: ServiceSelector -> State -> Maybe (ServiceIdentity, Connection)
+select selector State{clients} =
+  find (match selector . fst) (Map.toList clients)
+    where
+      match Messenger _  = False -- messenger is not included in the service list
+      match (AnyOfType selectorServiceType) (ServiceIdentity serviceType _)
+        = selectorServiceType == serviceType
+      match (Service selectorServiceIdentity) serviceIdentity
+        = selectorServiceIdentity == serviceIdentity

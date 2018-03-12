@@ -30,7 +30,8 @@ import           Validation                       (connected,
                                                    connectionCanCheckOut,
                                                    connectionCanMessage,
                                                    identityIsCheckedIn,
-                                                   notCheckedInYet)
+                                                   notCheckedInYet,
+                                                   selectServiceConnection)
 
 data Action
   = Connect Connection
@@ -65,10 +66,10 @@ stateLogic (Incoming connection (Envelope _ (CheckOut identity)) _) = do
                         <> " "
                         <> pack (show connection)
 
-stateLogic (Incoming connection (Envelope identity Message) messageString) = do
+stateLogic (Incoming connection (Envelope selector Message) messageString) = do
   connectionState <- connected connection
   connectionCanMessage connectionState
-  client <- identityIsCheckedIn identity
+  client <- selectServiceConnection selector
   success $ Send client messageString
 
 stateLogic (Disconnect connection exception) = do
