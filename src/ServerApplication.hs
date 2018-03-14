@@ -6,7 +6,7 @@ import           Control.Concurrent               (MVar, putMVar, takeMVar)
 import           Control.Exception                (catch)
 import           Control.Monad                    (forever)
 import qualified Control.Monad.Trans.State.Strict as StateT
-import           Data.Aeson                       (eitherDecode)
+import qualified Data.Aeson                       as Aeson
 import           Data.ByteString.Lazy             (ByteString)
 import           Data.Functor                     (($>))
 import           Data.Monoid                      ((<>))
@@ -18,9 +18,10 @@ import qualified System.Logger                    as Logger
 
 
 import           Connection                       (Connection (Connection), ConnectionState (Accepted, CheckedIn))
-import           Effect                           (Effect (Log, Send), handle)
+import           Effect                           (Effect (Log, Send, List), handle)
 import           Envelope                         (Envelope (Envelope))
 import           Message                          (IncomingMessage (CheckIn, CheckOut, Message))
+import qualified Message
 import           Query                            (failure, success)
 import           State                            (State)
 import qualified State
@@ -33,6 +34,8 @@ import           Validation                       (connected,
                                                    notCheckedInYet,
                                                    selectServiceConnection)
 
+import           ServiceIdentity                  (ServiceSelector(Service))
+
 data Action
   = Connect Connection
   | Disconnect Connection WebSocket.ConnectionException
@@ -44,14 +47,17 @@ stateLogic (Connect connection) = update $> effect
     update = StateT.modify $ State.connect connection
     effect = Log Info $ "New connection: " <> pack (show connection)
 
-stateLogic (Incoming connection (Envelope _ (CheckIn identity)) _) = do
+stateLogic (Incoming connection (Envelope _ (CheckIn serviceType)) _) = do
   connectionState <- connected connection
   notCheckedInYet connectionState
-  StateT.modify $ State.checkIn connection identity
-  success $ Log Info $ "CheckIn: "
-                    <> pack (show identity)
-                    <> " "
-                    <> pack (show connection)
+  serviceIdentity <- StateT.state $ State.checkIn connection serviceType
+  let logEffect  = Log Info $ "CheckIn: "
+                     <> pack (show serviceType)
+                     <> " "
+                     <> pack (show connection)
+      envelope   = Envelope (Service serviceIdentity) (Message.CheckedIn serviceIdentity)
+      sendEffect = Send connection $ Aeson.encode envelope
+  success $ List [sendEffect, logEffect]
 
 stateLogic (Incoming connection (Envelope _ (CheckOut identity)) _) = do
   connectionState <- connected connection
@@ -112,7 +118,7 @@ application logger stateVar pending = do
     (do
       string <- WebSocket.receiveData wsConnection :: IO ByteString
       Logger.trace logger $ Logger.msg $ "🕊  Received message: " <> string
-      case eitherDecode string :: Either String (Envelope IncomingMessage) of
+      case Aeson.eitherDecode string :: Either String (Envelope IncomingMessage) of
         Right envelope ->
           let action = Incoming connection envelope string
            in updateState logger stateVar action

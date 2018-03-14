@@ -40,14 +40,15 @@ disconnect connection state@State{connections, clients} =
                                        }
     Nothing                   -> state -- inconsistent state!
 
-checkIn :: Connection -> ServiceType -> State -> State
+checkIn :: Connection -> ServiceType -> State -> (ServiceIdentity, State)
 checkIn connection serviceType state@State{connections, clients, stdRandomGen} =
   let (uuid, newRandomGen) = random stdRandomGen
       serviceIdentity = ServiceIdentity serviceType uuid
-   in state { connections  = Map.adjust (const $ CheckedIn serviceIdentity) connection connections
-            , clients      = Map.insert serviceIdentity connection clients
-            , stdRandomGen = newRandomGen
-            }
+      newState = state { connections  = Map.adjust (const $ CheckedIn serviceIdentity) connection connections
+                       , clients      = Map.insert serviceIdentity connection clients
+                       , stdRandomGen = newRandomGen
+                       }
+   in (serviceIdentity, newState)
 
 checkOut :: ServiceIdentity -> State -> State
 checkOut identity state@State{connections, clients} =
