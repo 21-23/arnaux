@@ -34,7 +34,8 @@ import           Validation                       (connected,
                                                    notCheckedInYet,
                                                    selectServiceConnection)
 
-import           ServiceIdentity                  (ServiceSelector(Service))
+import           ServiceIdentity                  (ServiceSelector(Service, AnyOfType),
+                                                   ServiceType(ContainerService))
 
 data Action
   = Connect Connection
@@ -51,13 +52,15 @@ stateLogic (Incoming connection (Envelope _ (CheckIn serviceType)) _) = do
   connectionState <- connected connection
   notCheckedInYet connectionState
   serviceIdentity <- StateT.state $ State.checkIn connection serviceType
-  let logEffect  = Log Info $ "CheckIn: "
-                     <> pack (show serviceType)
-                     <> " "
-                     <> pack (show connection)
-      envelope   = Envelope (Service serviceIdentity) (Message.CheckedIn serviceIdentity)
-      sendEffect = Send connection $ Aeson.encode envelope
-  success $ List [sendEffect, logEffect]
+  containerServiceConnection <- selectServiceConnection $ AnyOfType ContainerService
+  let logEffect              = Log Info $ "CheckIn: "
+                               <> pack (show serviceType)
+                               <> " "
+                               <> pack (show connection)
+      envelope               = Envelope (Service serviceIdentity) (Message.CheckedIn serviceIdentity)
+      sendToService          = Send connection $ Aeson.encode envelope
+      sendToContainerService = Send containerServiceConnection $ Aeson.encode envelope
+  success $ List [sendToContainerService, sendToService, logEffect]
 
 stateLogic (Incoming connection (Envelope _ (CheckOut identity)) _) = do
   connectionState <- connected connection
