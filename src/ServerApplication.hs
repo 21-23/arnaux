@@ -6,7 +6,7 @@ import           Control.Concurrent               (MVar, putMVar, takeMVar)
 import           Control.Exception                (catch)
 import           Control.Monad                    (forever)
 import qualified Control.Monad.Trans.State.Strict as StateT
-import           Data.Aeson                       (eitherDecode)
+import qualified Data.Aeson                       as Aeson
 import           Data.ByteString.Lazy             (ByteString)
 import           Data.Functor                     (($>))
 import           Data.Monoid                      ((<>))
@@ -18,9 +18,10 @@ import qualified System.Logger                    as Logger
 
 
 import           Connection                       (Connection (Connection), ConnectionState (Accepted, CheckedIn))
-import           Effect                           (Effect (Log, Send), handle)
+import           Effect                           (Effect (Log, Send, List), handle)
 import           Envelope                         (Envelope (Envelope))
 import           Message                          (IncomingMessage (CheckIn, CheckOut, Message))
+import qualified Message
 import           Query                            (failure, success)
 import           State                            (State)
 import qualified State
@@ -29,9 +30,12 @@ import           StateQuery                       (ServiceError (CheckOutWrongId
 import           Validation                       (connected,
                                                    connectionCanCheckOut,
                                                    connectionCanMessage,
-                                                   identityIsAvailable,
                                                    identityIsCheckedIn,
-                                                   notCheckedInYet)
+                                                   notCheckedInYet,
+                                                   selectServiceConnection)
+
+import           ServiceIdentity                  (ServiceSelector(Service, AnyOfType),
+                                                   ServiceType(ContainerService))
 
 data Action
   = Connect Connection
@@ -44,15 +48,19 @@ stateLogic (Connect connection) = update $> effect
     update = StateT.modify $ State.connect connection
     effect = Log Info $ "New connection: " <> pack (show connection)
 
-stateLogic (Incoming connection (Envelope _ (CheckIn identity)) _) = do
+stateLogic (Incoming connection (Envelope _ (CheckIn serviceType)) _) = do
   connectionState <- connected connection
   notCheckedInYet connectionState
-  identityIsAvailable identity
-  StateT.modify $ State.checkIn connection identity
-  success $ Log Info $ "CheckIn: "
-                    <> pack (show identity)
-                    <> " "
-                    <> pack (show connection)
+  serviceIdentity <- StateT.state $ State.checkIn connection serviceType
+  containerServiceConnection <- selectServiceConnection $ AnyOfType ContainerService
+  let logEffect              = Log Info $ "CheckIn: "
+                               <> pack (show serviceType)
+                               <> " "
+                               <> pack (show connection)
+      envelope               = Envelope (Service serviceIdentity) (Message.CheckedIn serviceIdentity)
+      sendToService          = Send connection $ Aeson.encode envelope
+      sendToContainerService = Send containerServiceConnection $ Aeson.encode envelope
+  success $ List [sendToContainerService, sendToService, logEffect]
 
 stateLogic (Incoming connection (Envelope _ (CheckOut identity)) _) = do
   connectionState <- connected connection
@@ -67,10 +75,10 @@ stateLogic (Incoming connection (Envelope _ (CheckOut identity)) _) = do
                         <> " "
                         <> pack (show connection)
 
-stateLogic (Incoming connection (Envelope identity Message) messageString) = do
+stateLogic (Incoming connection (Envelope selector Message) messageString) = do
   connectionState <- connected connection
   connectionCanMessage connectionState
-  client <- identityIsCheckedIn identity
+  client <- selectServiceConnection selector
   success $ Send client messageString
 
 stateLogic (Disconnect connection exception) = do
@@ -113,7 +121,7 @@ application logger stateVar pending = do
     (do
       string <- WebSocket.receiveData wsConnection :: IO ByteString
       Logger.trace logger $ Logger.msg $ "🕊  Received message: " <> string
-      case eitherDecode string :: Either String (Envelope IncomingMessage) of
+      case Aeson.eitherDecode string :: Either String (Envelope IncomingMessage) of
         Right envelope ->
           let action = Incoming connection envelope string
            in updateState logger stateVar action

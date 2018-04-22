@@ -2,31 +2,32 @@
 
 module Message where
 
-import Data.Aeson    (FromJSON(parseJSON), Value(Object, String), (.:))
-import Control.Monad (mzero)
-import Data.Monoid   ((<>))
+import Data.Aeson    (FromJSON(parseJSON),
+                      ToJSON(toJSON),
+                      Value(Object, String), (.:), (.=), object)
 
-import Identity      (Identity, parseIdentity)
+import ServiceIdentity (ServiceIdentity, ServiceType)
 
 data IncomingMessage
-  = CheckIn Identity
-  | CheckOut Identity
+  = CheckIn ServiceType
+  | CheckOut ServiceIdentity
   | Message
 
 instance FromJSON IncomingMessage where
   parseJSON (Object message) = do
     name <- message .: "name"
     case name of
-      String "checkin" -> do
-        identityString <- message .: "identity"
-        case parseIdentity identityString of
-          Just identity -> return $ CheckIn identity
-          Nothing       -> fail   $ "Unrecognized identity " <> identityString
-      String "checkout" -> do
-        identityString <- message .: "identity"
-        case parseIdentity identityString of
-          Just identity -> return $ CheckOut identity
-          Nothing       -> fail   $ "Unrecognized identity " <> identityString
-      String _         -> return Message
-      _                -> fail   "Message name is not a string"
-  parseJSON _ = mzero
+      String "checkin"  -> CheckIn <$> message .: "identity"
+      String "checkout" -> CheckOut <$> message .: "identity"
+      String _          -> return Message
+      _                 -> fail "Message name is not a string"
+  parseJSON _ = fail "Bad message format"
+
+newtype OutgoingMessage
+  = CheckedIn ServiceIdentity
+
+instance ToJSON OutgoingMessage where
+  toJSON (CheckedIn serviceIdentity) = object
+    [ "name"     .= String "checkedIn"
+    , "identity" .= serviceIdentity
+    ]

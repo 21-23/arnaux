@@ -3,7 +3,7 @@ module Connection where
 import           Data.UUID          (UUID)
 import qualified Network.WebSockets as WebSockets
 
-import           Identity           (Identity)
+import           ServiceIdentity    (ServiceIdentity)
 
 data Connection = Connection UUID WebSockets.Connection
 
@@ -18,4 +18,4 @@ instance Show Connection where
 
 data ConnectionState
   = Accepted
-  | CheckedIn Identity
+  | CheckedIn ServiceIdentity
