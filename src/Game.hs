@@ -8,15 +8,19 @@ import Data.Aeson (ToJSON(toJSON), FromJSON(parseJSON), Value(String))
 
 data Game
   = CSSQuickDraw
-  | LodashQuickDraw deriving (Eq, Read, Show, Ord)
+  | LodashQuickDraw
+  | JSQuickDraw
+  deriving (Eq, Read, Show, Ord)
 
 stringify :: Game -> Text
 stringify CSSQuickDraw    = "cssqd"
 stringify LodashQuickDraw = "_qd"
+stringify JSQuickDraw     = "jsqd"
 
 parseGame :: (MonadPlus m) => Text -> m Game
 parseGame "cssqd" = pure CSSQuickDraw
 parseGame "_qd"   = pure LodashQuickDraw
+parseGame "jsqd"  = pure JSQuickDraw
 parseGame _       = mzero
 
 instance ToJSON Game where
